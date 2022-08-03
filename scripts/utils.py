@@ -64,7 +64,9 @@ def get_nvidia_cc():
         else:
             break
     else:
-        return None, "Could not load any of: " + ' '.join(libnames)
+        import os
+        raise OSError(f"{os.listdir('/usr/local/cuda')} + {os.environ['LD_LIBRARY_PATH']}")
+        #return None, "Could not load any of: " + ' '.join(libnames)
 
     nGpus = ctypes.c_int()
     cc_major = ctypes.c_int()
