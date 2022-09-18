@@ -18,7 +18,9 @@ import datetime
 from multiprocessing import cpu_count
 from typing import Mapping, Optional, Sequence, Any
 
+import ml_collections
 import numpy as np
+import torch
 
 from openfold.data import templates, parsers, mmcif_parsing
 from openfold.data.tools import jackhmmer, hhblits, hhsearch
@@ -594,6 +596,7 @@ class DataPipeline:
     def process_fasta(
         self,
         fasta_path: str,
+        config: ml_collections.ConfigDict,
         alignment_dir: str,
         alignment_index: Optional[str] = None,
     ) -> FeatureDict:
@@ -621,19 +624,25 @@ class DataPipeline:
             description=input_description,
             num_res=num_res,
         )
+        protein_and_chain_name = os.path.basename(alignment_dir)
+        preembedding_data = self.prepare_preembedding(
+            protein_and_chain_name, alignment_dir, config)
 
         msa_features = self._process_msa_feats(alignment_dir, input_sequence, alignment_index)
         
         return {
             **sequence_features,
             **msa_features, 
-            **template_features
+            **template_features,
+            **preembedding_data,
         }
 
     def process_mmcif(
         self,
         mmcif: mmcif_parsing.MmcifObject,  # parsing is expensive, so no path
         alignment_dir: str,
+        preembedding_dir: str,
+        config: ml_collections.ConfigDict,
         chain_id: Optional[str] = None,
         alignment_index: Optional[str] = None,
     ) -> FeatureDict:
@@ -660,15 +669,21 @@ class DataPipeline:
             self.template_featurizer,
             query_release_date=to_date(mmcif.header["release_date"])
         )
-        
+        protein_and_chain_name = os.path.basename(alignment_dir)
+        preembedding_data = self.prepare_preembedding(
+            protein_and_chain_name, preembedding_dir, config)
+        # TODO: Do we need the config here? We really only need model_name
+
         msa_features = self._process_msa_feats(alignment_dir, input_sequence, alignment_index)
 
-        return {**mmcif_feats, **template_features, **msa_features}
+        return {**mmcif_feats, **template_features, **msa_features, **preembedding_data}
 
     def process_pdb(
         self,
         pdb_path: str,
         alignment_dir: str,
+        config: ml_collections.ConfigDict,
+        preembedding_dir: str,
         is_distillation: bool = True,
         chain_id: Optional[str] = None,
         _structure_index: Optional[str] = None,
@@ -705,10 +720,21 @@ class DataPipeline:
             hits,
             self.template_featurizer,
         )
+        protein_and_chain_name = os.path.basename(alignment_dir)
+        preembedding_data = self.prepare_preembedding(
+            protein_and_chain_name, preembedding_dir, config)
 
         msa_features = self._process_msa_feats(alignment_dir, input_sequence, alignment_index)
 
-        return {**pdb_feats, **template_features, **msa_features}
+        return {**pdb_feats, **template_features, **msa_features, **preembedding_data}
+
+    def prepare_preembedding(self, protein_name, preembedding_dir, config):
+        preembedding_data = {}
+        if (config.model_name.startswith("preembedding_")):
+            preembedding = torch.load(os.path.join(preembedding_dir, protein_name + ".pt"))
+            preembedding_data["preembedding"] = preembedding["representations"][33]
+            # TODO: eliminate the "representations" key, and just have plain embeddings in file.
+        return preembedding_data
 
     def process_core(
         self,
