@@ -21,6 +21,34 @@ from openfold.model.primitives import Linear, LayerNorm
 from openfold.utils.tensor_utils import add
 
 
+def relpos(ri: torch.Tensor, relpos_k):
+    """
+    Computes relative positional encodings
+
+    Implements Algorithm 4.
+
+    Args:
+        ri:
+            "residue_index" features of shape [*, N]
+        relpos_k:
+            "Window size used in relative positional encoding
+    Returns:
+        d:
+            clipped relative distances between residue pairs.
+    """
+    d = ri[..., None] - ri[..., None, :]
+    boundaries = torch.arange(
+        start=-relpos_k, end=relpos_k + 1, device=d.device
+    )
+    reshaped_bins = boundaries.view(((1,) * len(d.shape)) + (len(boundaries),))
+    d = d[..., None] - reshaped_bins
+    d = torch.abs(d)
+    d = torch.argmin(d, dim=-1)
+    d = nn.functional.one_hot(d, num_classes=len(boundaries)).float()
+    d = d.to(ri.dtype)
+    return d
+
+
 class InputEmbedder(nn.Module):
     """
     Embeds a subset of the input features.
@@ -68,28 +96,6 @@ class InputEmbedder(nn.Module):
         self.no_bins = 2 * relpos_k + 1
         self.linear_relpos = Linear(self.no_bins, c_z)
 
-    def relpos(self, ri: torch.Tensor):
-        """
-        Computes relative positional encodings
-
-        Implements Algorithm 4.
-
-        Args:
-            ri:
-                "residue_index" features of shape [*, N]
-        """
-        d = ri[..., None] - ri[..., None, :]
-        boundaries = torch.arange(
-            start=-self.relpos_k, end=self.relpos_k + 1, device=d.device
-        ) 
-        reshaped_bins = boundaries.view(((1,) * len(d.shape)) + (len(boundaries),))
-        d = d[..., None] - reshaped_bins
-        d = torch.abs(d)
-        d = torch.argmin(d, dim=-1)
-        d = nn.functional.one_hot(d, num_classes=len(boundaries)).float()
-        d = d.to(ri.dtype)
-        return self.linear_relpos(d)
-
     def forward(
         self,
         tf: torch.Tensor,
@@ -117,7 +123,7 @@ class InputEmbedder(nn.Module):
         tf_emb_j = self.linear_tf_z_j(tf)
 
         # [*, N_res, N_res, c_z]
-        pair_emb = self.relpos(ri.type(tf_emb_i.dtype))
+        pair_emb = self.linear_relpos(relpos(ri.type(tf_emb_i.dtype), self.relpos_k))
         pair_emb = add(pair_emb, 
             tf_emb_i[..., None, :], 
             inplace=inplace_safe
@@ -184,28 +190,6 @@ class PreembeddingEmbedder(nn.Module):
         self.no_bins = 2 * relpos_k + 1
         self.linear_relpos = Linear(self.no_bins, c_z)
 
-    def relpos(self, ri: torch.Tensor):
-        """
-        Computes relative positional encodings
-        Args:
-            ri:
-                "residue_index" feature of shape [*, N]
-        Returns:
-                Relative positional encoding of protein using the
-                residue_index feature
-        """
-        d = ri[..., None] - ri[..., None, :]
-        boundaries = torch.arange(
-            start=-self.relpos_k, end=self.relpos_k + 1, device=d.device
-        )
-        reshaped_bins = boundaries.view(((1,) * len(d.shape)) + (len(boundaries),))
-        d = d[..., None] - reshaped_bins
-        d = torch.abs(d)
-        d = torch.argmin(d, dim=-1)
-        d = nn.functional.one_hot(d, num_classes=len(boundaries)).float()
-        d = d.to(ri.dtype)
-        return self.linear_relpos(d)
-
     def forward(
         self,
         tf: torch.Tensor,
@@ -218,11 +202,12 @@ class PreembeddingEmbedder(nn.Module):
             self.linear_tf_m(tf)
             .unsqueeze(-3)
         )
-        preemb_emb = self.linear_preemb_m(preemb[..., None, :, :]) + tf_m
+        seq_emb = self.linear_preemb_m(preemb[..., None, :, :]) + tf_m
         preemb_emb_i = self.linear_preemb_z_i(preemb)
         preemb_emb_j = self.linear_preemb_z_j(preemb)
 
-        pair_emb = self.relpos(ri.type(preemb_emb_i.dtype))
+        # relative positional encoding
+        pair_emb = self.linear_relpos(relpos(ri.type(preemb_emb_i.dtype), self.relpos_k))
         pair_emb = add(pair_emb,
                        preemb_emb_i[..., None, :],
                        inplace=inplace_safe)
@@ -230,7 +215,7 @@ class PreembeddingEmbedder(nn.Module):
                        preemb_emb_j[..., None, :, :],
                        inplace=inplace_safe)
 
-        return preemb_emb, pair_emb
+        return seq_emb, pair_emb
 
 
 class RecyclingEmbedder(nn.Module):
