@@ -333,12 +333,13 @@ class EvoformerBlock(nn.Module):
             inf=inf,
         )
 
-        self.msa_att_col = MSAColumnAttention(
-            c_m,
-            c_hidden_msa_att,
-            no_heads_msa,
-            inf=inf,
-        )
+        if not self.config.model_name.startswith("preembedding_"):
+            self.msa_att_col = MSAColumnAttention(
+                c_m,
+                c_hidden_msa_att,
+                no_heads_msa,
+                inf=inf,
+            )
 
         self.msa_dropout_layer = DropoutRowwise(msa_dropout)
 
@@ -394,17 +395,18 @@ class EvoformerBlock(nn.Module):
             ),
             inplace=inplace_safe,
         )
-        
-        m = add(m, 
-            self.msa_att_col(
-                m, 
-                mask=msa_mask, 
-                chunk_size=chunk_size,
-                use_lma=use_lma,
-                use_flash=use_flash,
-            ),
-            inplace=inplace_safe,
-        )
+
+        if (not self.config.model_name.startswith("preembedding_")):
+            m = add(m,
+                self.msa_att_col(
+                    m,
+                    mask=msa_mask,
+                    chunk_size=chunk_size,
+                    use_lma=use_lma,
+                    use_flash=use_flash,
+                ),
+                inplace=inplace_safe,
+            )
 
         if(not inplace_safe):
             input_tensors = [m, input_tensors[1]]
