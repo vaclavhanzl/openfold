@@ -55,6 +55,7 @@ def model_config(
     long_sequence_inference=False
 ):
     c = copy.deepcopy(config)
+    c["model_name"] = name
     # TRAINING PRESETS
     if name == "initial_training":
         # AF2 Suppl. Table 4, "initial training" setting
@@ -92,6 +93,25 @@ def model_config(
         c.loss.experimentally_resolved.weight = 0.01
         c.model.heads.tm.enabled = True
         c.loss.tm.weight = 0.1
+    # PREEMBEDDING TRAINING PRESETS
+    elif name == "preembedding_initial_training":
+        c.data.common.use_msa = False
+        c.data.common.use_extra_msa = False
+        c.model.extra_msa.enabled = False
+        c.module.input_embedder.enabled = False
+        c.model.preembedding_embedder.enabled = True
+    elif name == "preembedding_finetuning":
+        c.data.common.use_msa = False
+        c.data.common.use_extra_msa = False
+        c.model.extra_msa.enabled = False
+        c.module.input_embedder.enabled = False
+        c.model.preembedding_embedder.enabled = True
+        # finetuning
+        c.data.train.crop_size = 384
+        c.data.train.max_extra_msa = 5120
+        c.data.train.max_msa_clusters = 512
+        c.loss.violation.weight = 1
+        c.loss.experimentally_resolved.weight = 0.01
     # INFERENCE PRESETS
     elif name == "model_1":
         # AF2 Suppl. Table 5, Model 1.1.1
