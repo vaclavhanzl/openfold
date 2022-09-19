@@ -386,6 +386,10 @@ if __name__ == "__main__":
         help="Directory containing precomputed training alignments"
     )
     parser.add_argument(
+        "train_preembedding_dir", type=str,
+        help="Directory containing precomputed training set sequence preembeddings"
+    )
+    parser.add_argument(
         "template_mmcif_dir", type=str,
         help="Directory containing mmCIF files to search for templates"
     )
@@ -408,12 +412,20 @@ if __name__ == "__main__":
         help="Directory containing precomputed distillation alignments"
     )
     parser.add_argument(
+        "--distillation_preembedding_dir", type=str, default=None,
+        help="Directory containing precomputed distillation set sequence preembeddings"
+    )
+    parser.add_argument(
         "--val_data_dir", type=str, default=None,
         help="Directory containing validation mmCIF files"
     )
     parser.add_argument(
         "--val_alignment_dir", type=str, default=None,
         help="Directory containing precomputed validation alignments"
+    )
+    parser.add_argument(
+        "--val_preembedding_dir", type=str, default=None,
+        help="Directory containing precomputed validation set sequence preembeddings"
     )
     parser.add_argument(
         "--kalign_binary_path", type=str, default='/usr/bin/kalign',
