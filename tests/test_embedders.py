@@ -17,6 +17,7 @@ import numpy as np
 import unittest
 from openfold.model.embedders import (
     InputEmbedder,
+    PreembeddingEmbedder,
     RecyclingEmbedder,
     TemplateAngleEmbedder,
     TemplatePairEmbedder,
@@ -45,6 +46,25 @@ class TestInputEmbedder(unittest.TestCase):
         self.assertTrue(msa_emb.shape == (b, n_clust, n_res, c_m))
         self.assertTrue(pair_emb.shape == (b, n_res, n_res, c_z))
 
+class TestPreembeddingEmbedder(unittest.TestCase):
+    def test_shape(self):
+        tf_dim = 2
+        preembedding_dim = 1280
+        c_z = 5
+        c_m = 7
+        relpos_k = 11
+
+        batch = 13
+        n_res = 50
+        tf = torch.rand((batch, n_res, tf_dim))
+        ri = torch.arange (n_res).repeat(batch, 1)
+        preemb = torch.rand((batch, n_res, preembedding_dim))
+
+        pe = PreembeddingEmbedder(tf_dim, preembedding_dim, c_z, c_m, relpos_k)
+
+        seq_emb, pair_emb = pe(tf, ri, preemb)
+        self.assertTrue(seq_emb.shape == (batch, 1, n_res, c_m))
+        self.assertTrue(pair_emb.shape == (batch, n_res, n_res, c_z))
 
 class TestRecyclingEmbedder(unittest.TestCase):
     def test_shape(self):

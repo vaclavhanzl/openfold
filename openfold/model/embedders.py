@@ -53,7 +53,7 @@ class InputEmbedder(nn.Module):
     """
     Embeds a subset of the input features.
 
-    Implements Algorithms 3 (InputEmbedder) and 4 (relpos).
+    Implements Algorithms 3 (InputEmbedder).
     """
 
     def __init__(
