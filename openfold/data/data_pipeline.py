@@ -596,9 +596,9 @@ class DataPipeline:
     def process_fasta(
         self,
         fasta_path: str,
-        config: ml_collections.ConfigDict,
         alignment_dir: str,
         alignment_index: Optional[str] = None,
+        config: ml_collections.ConfigDict = None,
     ) -> FeatureDict:
         """Assembles features for a single sequence in a FASTA file""" 
         with open(fasta_path) as f:
@@ -641,8 +641,8 @@ class DataPipeline:
         self,
         mmcif: mmcif_parsing.MmcifObject,  # parsing is expensive, so no path
         alignment_dir: str,
-        preembedding_dir: str,
-        config: ml_collections.ConfigDict,
+        preembedding_dir: str = None,
+        config: ml_collections.ConfigDict = None,
         chain_id: Optional[str] = None,
         alignment_index: Optional[str] = None,
     ) -> FeatureDict:
@@ -682,8 +682,8 @@ class DataPipeline:
         self,
         pdb_path: str,
         alignment_dir: str,
-        config: ml_collections.ConfigDict,
-        preembedding_dir: str,
+        config: ml_collections.ConfigDict = None,
+        preembedding_dir: str = None,
         is_distillation: bool = True,
         chain_id: Optional[str] = None,
         _structure_index: Optional[str] = None,
@@ -730,7 +730,7 @@ class DataPipeline:
 
     def prepare_preembedding(self, protein_name, preembedding_dir, config):
         preembedding_data = {}
-        if (config.model_name.startswith("preembedding_")):
+        if (config and preembedding_dir and config.model_name.startswith("preembedding_")):
             preembedding = torch.load(os.path.join(preembedding_dir, protein_name + ".pt"))
             preembedding_data["preembedding"] = preembedding["representations"][33]
             # TODO: eliminate the "representations" key, and just have plain embeddings in file.
