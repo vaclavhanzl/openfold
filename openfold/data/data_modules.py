@@ -24,7 +24,8 @@ from openfold.utils.tensor_utils import tensor_tree_map, dict_multimap
 class OpenFoldSingleDataset(torch.utils.data.Dataset):
     def __init__(self,
         data_dir: str,
-        alignment_dir: str, 
+        alignment_dir: str,
+        preembedding_dir: str,
         template_mmcif_dir: str,
         max_template_date: str,
         config: mlc.ConfigDict,
@@ -82,6 +83,7 @@ class OpenFoldSingleDataset(torch.utils.data.Dataset):
         self.data_dir = data_dir
         self.alignment_dir = alignment_dir
         self.config = config
+        self.preembedding_dir = preembedding_dir
         self.treat_pdb_as_distillation = treat_pdb_as_distillation
         self.mode = mode
         self.alignment_index = alignment_index
@@ -103,7 +105,12 @@ class OpenFoldSingleDataset(torch.utils.data.Dataset):
         if(alignment_index is not None):
             self._chain_ids = list(alignment_index.keys())
         else:
-            self._chain_ids = list(os.listdir(alignment_dir))
+            if (not self.config.model_name.startswith("preembedding_")):
+                self._chain_ids = list(os.listdir(alignment_dir))
+            else:
+                # If we are using preembeddings
+                self._chain_ids = [os.path.splitext(os.path.basename(filename))[0]
+                                   for filename in os.listdir(self.preembedding_dir)]
         
         if(filter_path is not None):
             with open(filter_path, "r") as f:
@@ -132,7 +139,7 @@ class OpenFoldSingleDataset(torch.utils.data.Dataset):
         if(not self._output_raw):
             self.feature_pipeline = feature_pipeline.FeaturePipeline(config) 
 
-    def _parse_mmcif(self, path, file_id, chain_id, alignment_dir, alignment_index):
+    def _parse_mmcif(self, path, file_id, chain_id, alignment_dir, alignment_index, preembedding_dir):
         with open(path, 'r') as f:
             mmcif_string = f.read()
 
@@ -150,6 +157,8 @@ class OpenFoldSingleDataset(torch.utils.data.Dataset):
         data = self.data_pipeline.process_mmcif(
             mmcif=mmcif_object,
             alignment_dir=alignment_dir,
+            preembedding_dir=preembedding_dir,
+            config=self.config,
             chain_id=chain_id,
             alignment_index=alignment_index
         )
@@ -165,6 +174,7 @@ class OpenFoldSingleDataset(torch.utils.data.Dataset):
     def __getitem__(self, idx):
         name = self.idx_to_chain_id(idx)
         alignment_dir = os.path.join(self.alignment_dir, name)
+        preembedding_dir = self.preembedding_dir
 
         alignment_index = None
         if(self.alignment_index is not None):
@@ -199,7 +209,7 @@ class OpenFoldSingleDataset(torch.utils.data.Dataset):
             path += ext
             if(ext == ".cif"):
                 data = self._parse_mmcif(
-                    path, file_id, chain_id, alignment_dir, alignment_index,
+                    path, file_id, chain_id, alignment_dir, alignment_index, preembedding_dir
                 )
             elif(ext == ".core"):
                 data = self.data_pipeline.process_core(
@@ -212,6 +222,7 @@ class OpenFoldSingleDataset(torch.utils.data.Dataset):
                 data = self.data_pipeline.process_pdb(
                     pdb_path=path,
                     alignment_dir=alignment_dir,
+                    preembedding_dir=preembedding_dir,
                     is_distillation=self.treat_pdb_as_distillation,
                     chain_id=chain_id,
                     alignment_index=alignment_index,
@@ -223,6 +234,7 @@ class OpenFoldSingleDataset(torch.utils.data.Dataset):
             path = os.path.join(name, name + ".fasta")
             data = self.data_pipeline.process_fasta(
                 fasta_path=path,
+                config=self.config,
                 alignment_dir=alignment_dir,
                 alignment_index=alignment_index,
             )
@@ -490,12 +502,15 @@ class OpenFoldDataModule(pl.LightningDataModule):
         max_template_date: str,
         train_data_dir: Optional[str] = None,
         train_alignment_dir: Optional[str] = None,
+        train_preembedding_dir: Optional[str] = None,
         train_chain_data_cache_path: Optional[str] = None,
         distillation_data_dir: Optional[str] = None,
         distillation_alignment_dir: Optional[str] = None,
+        distillation_preembedding_dir: Optional[str] = None,
         distillation_chain_data_cache_path: Optional[str] = None,
         val_data_dir: Optional[str] = None,
         val_alignment_dir: Optional[str] = None,
+        val_preembedding_dir: Optional[str] = None,
         predict_data_dir: Optional[str] = None,
         predict_alignment_dir: Optional[str] = None,
         kalign_binary_path: str = '/usr/bin/kalign',
@@ -517,14 +532,17 @@ class OpenFoldDataModule(pl.LightningDataModule):
         self.max_template_date = max_template_date
         self.train_data_dir = train_data_dir
         self.train_alignment_dir = train_alignment_dir
+        self.train_preembedding_dir = train_preembedding_dir
         self.train_chain_data_cache_path = train_chain_data_cache_path
         self.distillation_data_dir = distillation_data_dir
         self.distillation_alignment_dir = distillation_alignment_dir
+        self.distillation_preembedding_dir = distillation_preembedding_dir
         self.distillation_chain_data_cache_path = (
             distillation_chain_data_cache_path
         )
         self.val_data_dir = val_data_dir
         self.val_alignment_dir = val_alignment_dir
+        self.val_preembeding_dir = val_preembedding_dir
         self.predict_data_dir = predict_data_dir
         self.predict_alignment_dir = predict_alignment_dir
         self.kalign_binary_path = kalign_binary_path
@@ -592,6 +610,7 @@ class OpenFoldDataModule(pl.LightningDataModule):
             train_dataset = dataset_gen(
                 data_dir=self.train_data_dir,
                 alignment_dir=self.train_alignment_dir,
+                preembedding_dir=self.train_preembedding_dir,
                 filter_path=self.train_filter_path,
                 max_template_hits=self.config.train.max_template_hits,
                 shuffle_top_k_prefiltered=
@@ -606,6 +625,7 @@ class OpenFoldDataModule(pl.LightningDataModule):
                 distillation_dataset = dataset_gen(
                     data_dir=self.distillation_data_dir,
                     alignment_dir=self.distillation_alignment_dir,
+                    preembedding_dir=self.distillation_preembedding_dir,
                     filter_path=self.distillation_filter_path,
                     max_template_hits=self.config.train.max_template_hits,
                     treat_pdb_as_distillation=True,
@@ -649,6 +669,7 @@ class OpenFoldDataModule(pl.LightningDataModule):
                 self.eval_dataset = dataset_gen(
                     data_dir=self.val_data_dir,
                     alignment_dir=self.val_alignment_dir,
+                    preembedding_dir=self.val_preembedding_dir,
                     filter_path=None,
                     max_template_hits=self.config.eval.max_template_hits,
                     mode="eval",
