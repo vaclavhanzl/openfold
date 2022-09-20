@@ -44,12 +44,18 @@ class TestDataTransforms(unittest.TestCase):
         assert protein['all_atom_aatype'].shape == protein['aatype'].shape
 
     def test_fix_templates_aatype(self):
+        seq = torch.tensor([range(20)], dtype=torch.int64).transpose(0,1)
+        seq_one_hot = torch.FloatTensor(seq.shape[0], 20).zero_()
+        seq_one_hot.scatter_(1, seq, 1)
+        protein_aatype = seq_one_hot.clone().detach()
+
         template_seq = torch.tensor(list(range(20))*2, dtype=torch.int64)
         template_seq = template_seq.unsqueeze(0).transpose(0, 1)
         template_seq_one_hot = torch.FloatTensor(template_seq.shape[0], 20).zero_()
         template_seq_one_hot.scatter_(1, template_seq, 1)
         template_aatype = template_seq_one_hot.clone().detach().unsqueeze(0)
-        protein = {'template_aatype': template_aatype}
+        protein = {'aatype': protein_aatype,
+                   'template_aatype': template_aatype}
         protein = fix_templates_aatype(protein)
         template_seq_ours = torch.tensor([[0, 4, 3, 6, 13, 7, 8, 9, 11, 10, 12, 2, 14, 5, 1, 15, 16, 19, 17, 18]*2])
         assert torch.all(torch.eq(protein['template_aatype'], template_seq_ours))
@@ -174,8 +180,12 @@ class TestDataTransforms(unittest.TestCase):
     def test_make_masked_msa(self):
         with open('tests/test_data/features.pkl', 'rb') as file:
             features = pickle.load(file)
-
-        protein = {'msa': torch.tensor(features['msa'], dtype=torch.int64)}
+        seq = torch.tensor([range(20)], dtype=torch.int64).transpose(0,1)
+        seq_one_hot = torch.FloatTensor(seq.shape[0], 20).zero_()
+        seq_one_hot.scatter_(1, seq, 1)
+        protein_aatype = seq_one_hot.clone().detach()
+        protein = {'aatype': protein_aatype,
+                   'msa': torch.tensor(features['msa'], dtype=torch.int64)}
         protein = make_hhblits_profile(protein)
         masked_msa_config = config.data.common.masked_msa
         protein = make_masked_msa.__wrapped__(protein, masked_msa_config, replace_fraction=0.15)
