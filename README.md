@@ -22,7 +22,7 @@ We've publicly released model weights and our training data &mdash; some 400,000
 MSAs and PDB70 template hit files &mdash; under a permissive license. Model weights 
 are available via scripts in this repository while the MSAs are hosted by the 
 [Registry of Open Data on AWS (RODA)](https://registry.opendata.aws/openfold). 
-Try out running inference for yourself with our **(VH's version of)** [Colab notebook](https://colab.research.google.com/github/vaclavhanzl/openfold/blob/main/notebooks/OpenFold.ipynb).
+Try out running inference for yourself with our **(VH's version of)** [Colab notebook](https://colab.research.google.com/github/vaclavhanzl/openfold/blob/vhmain/notebooks/OpenFold.ipynb).
 
 OpenFold also supports inference using AlphaFold's official parameters, and 
 vice versa (see `scripts/convert_of_weights_to_jax.py`).
