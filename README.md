@@ -2,7 +2,7 @@
 _Figure: Comparison of OpenFold and AlphaFold2 predictions to the experimental structure of PDB 7KDX, chain B._
 
 
-# OpenFold
+# OpenFold - Vaclav Hanzl's fork
 
 A faithful but trainable PyTorch reproduction of DeepMind's 
 [AlphaFold 2](https://github.com/deepmind/alphafold).
@@ -22,7 +22,7 @@ We've publicly released model weights and our training data &mdash; some 400,000
 MSAs and PDB70 template hit files &mdash; under a permissive license. Model weights 
 are available via scripts in this repository while the MSAs are hosted by the 
 [Registry of Open Data on AWS (RODA)](https://registry.opendata.aws/openfold). 
-Try out running inference for yourself with our [Colab notebook](https://colab.research.google.com/github/aqlaboratory/openfold/blob/main/notebooks/OpenFold.ipynb).
+Try out running inference for yourself with our **(VH's version of)** [Colab notebook](https://colab.research.google.com/github/vaclavhanzl/openfold/blob/main/notebooks/OpenFold.ipynb).
 
 OpenFold also supports inference using AlphaFold's official parameters, and 
 vice versa (see `scripts/convert_of_weights_to_jax.py`).
