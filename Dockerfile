@@ -1,5 +1,6 @@
 FROM nvidia/cuda:11.3.1-cudnn8-runtime-ubuntu18.04
 
+# ADDED THIS LINE TO PROVOKE A NEW DOCKER BUILD TO TEST THAT IS STILL WORKS
 # metainformation
 LABEL org.opencontainers.image.version = "1.0.0"
 LABEL org.opencontainers.image.authors = "Gustaf Ahdritz"
@@ -31,6 +32,6 @@ COPY setup.py /opt/openfold/setup.py
 COPY lib/openmm.patch /opt/openfold/lib/openmm.patch
 RUN wget -q -P /opt/openfold/openfold/resources \
     https://git.scicore.unibas.ch/schwede/openstructure/-/raw/7102c63615b64735c4941278d92b554ec94415f8/modules/mol/alg/src/stereo_chemical_props.txt
-RUN patch -p0 -d /opt/conda/lib/python3.7/site-packages/ < /opt/openfold/lib/openmm.patch
+RUN patch -p0 -d /opt/conda/lib/python3.9/site-packages/ < /opt/openfold/lib/openmm.patch
 WORKDIR /opt/openfold
 RUN python3 setup.py install
