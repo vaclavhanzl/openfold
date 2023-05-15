@@ -1,5 +1,6 @@
 FROM nvidia/cuda:11.3.1-cudnn8-runtime-ubuntu18.04
 
+# ADDED THIS LINE TO PROVOKE A NEW DOCKER BUILD TO TEST THAT IS STILL WORKS
 # metainformation
 LABEL org.opencontainers.image.version = "1.0.0"
 LABEL org.opencontainers.image.authors = "Gustaf Ahdritz"
